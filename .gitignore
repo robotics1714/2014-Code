@@ -6,3 +6,4 @@
 *.c
 *.o
 *.out
+/PPC603gnu
