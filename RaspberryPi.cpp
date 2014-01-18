@@ -59,9 +59,11 @@ void RaspberryPi::Read()
 	memset(msg, 0, sizeof(msg));
 	
 	//Recieve a packet, if the function returns 0 no message was recieved
-	if(recvfrom(sock, msg, sizeof(msg), O_NONBLOCK, NULL, NULL) == 0)
+	if(recvfrom(sock, msg, sizeof(msg), MSG_DONTWAIT, NULL, NULL) == 0)
 	{
 		cout<<"No data was recieved\n";
+		DriverStationLCD::GetInstance()->Printf(DriverStationLCD::kUser_Line4, 1, "NOO0");
+		DriverStationLCD::GetInstance()->UpdateLCD();
 	}
 	else
 	{

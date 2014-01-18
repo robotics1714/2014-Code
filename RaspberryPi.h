@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "sockLib.h"
+#include "DriverStationLCD.h"
 
 using namespace std;
 
