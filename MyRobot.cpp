@@ -1,13 +1,8 @@
 #include "WPILib.h"
 #include "RaspberryPi.h"
 #include "GlobalDefines.h"
+#include "Intake.h"
 
-/**
- * This is a demo program showing the use of the RobotBase class.
- * The SimpleRobot class is the base of a robot application that will automatically call your
- * Autonomous and OperatorControl methods at the right time as controlled by the switches on
- * the driver station or the field controls.
- */ 
 class RobotDemo : public SimpleRobot
 {
 	RobotDrive* myRobot; // robot drive system
@@ -17,7 +12,7 @@ class RobotDemo : public SimpleRobot
 	//Camera tracking objects
 	RaspberryPi* rpi;
 	Relay* LEDLight;
-
+	
 	DriverStationLCD* lcd;
 
 public:
@@ -26,11 +21,11 @@ public:
 		myRobot = new RobotDrive(1, 2);
 		leftStick = new Joystick(1);
 		rightStick = new Joystick(2);
-
+		
 		rpi = new RaspberryPi("17140");
 		LEDLight = new Relay(1);
 		LEDLight->Set(Relay::kForward);
-
+		
 		lcd = DriverStationLCD::GetInstance();
 	}
 
