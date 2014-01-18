@@ -1,5 +1,6 @@
 #include "WPILib.h"
 #include "RaspberryPi.h"
+#include "GlobalDefines.h"
 
 /**
  * This is a demo program showing the use of the RobotBase class.
