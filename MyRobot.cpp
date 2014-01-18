@@ -7,11 +7,11 @@
 
 //Ports for the Intake TODO Change port numbers to real values
 #define INTAKE_ROLLER_PORT 1
-#define INTAKE_LEFT_PIVOT_PORT 1
+/*#define INTAKE_LEFT_PIVOT_PORT 1
 #define INTAKE_RIGHT_PIVOT_PORT 1
 #define INTAKE_UPPER_LIMIT_PORT 1
 #define INTAKE_LOWER_LIMIT_PORT 1
-#define INTAKE_POSITION_POT_PORT 1
+#define INTAKE_POSITION_POT_PORT 1*/
 
 #define GYRO_PORT 1
 
@@ -67,8 +67,7 @@ public:
 
 		gyro = new Gyro(GYRO_PORT);
 
-		intake = new Intake(INTAKE_ROLLER_PORT, INTAKE_LEFT_PIVOT_PORT, INTAKE_RIGHT_PIVOT_PORT,
-				INTAKE_UPPER_LIMIT_PORT, INTAKE_LOWER_LIMIT_PORT, INTAKE_POSITION_POT_PORT);
+		intake = new Intake(INTAKE_ROLLER_PORT);
 		catapult = new Catapult;
 
 		rpi = new RaspberryPi("17140");

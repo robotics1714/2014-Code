@@ -1,27 +1,26 @@
 #include "Intake.h"
 
-Intake::Intake(int rollerPort, int pivotLPort, int pivotRPort, 
-		int upperLimitPort, int lowerLimitPort, int positionPotPort)
+Intake::Intake(int rollerPort)
 {
 	roller = new Victor(rollerPort);
-	pivotL = new Victor(pivotLPort);
+	/*pivotL = new Victor(pivotLPort);
 	pivotR = new Victor(pivotRPort);
 	upperLimit = new DigitalInput(upperLimitPort);
 	lowerLimit = new DigitalInput(lowerLimitPort);
-	positionPot = new AnalogChannel(positionPotPort);
+	positionPot = new AnalogChannel(positionPotPort);*/
 }
 
 Intake::~Intake()
 {
 	delete roller;
-	delete pivotL;
+	/*delete pivotL;
 	delete pivotR;
 	delete upperLimit;
 	delete lowerLimit;
-	delete positionPot;
+	delete positionPot;*/
 }
 
-void Intake::Move(float speed)
+/*void Intake::Move(float speed)
 {
 	//check if the intake is moving up
 	if(speed > 0)
@@ -38,7 +37,7 @@ void Intake::Move(float speed)
 		{
 			Stop();
 		}
-		
+
 	}
 	//check if the intake is moving down
 	else if(speed < 0)
@@ -61,8 +60,8 @@ void Intake::Move(float speed)
 	{
 		Stop();
 	}
-	
-	
+
+
 }
 
 void Intake::MoveToPosition(float pos)
@@ -79,7 +78,12 @@ void Intake::MoveToPosition(float pos)
 		//Move downwards
 		Move(FULL_BACKWARDS);
 	}
-}
+
+	float Intake::GetPos(void)
+	{
+		return positionPot->GetAverageVoltage();
+	}
+}*/
 
 void Intake::RollIn(float speed) 
 {
@@ -91,11 +95,6 @@ void Intake::Stop(void)
 {
 	//Stop all of the motors
 	roller->Set(STOPPED);
-	pivotL->Set(STOPPED);
-	pivotR->Set(STOPPED);
-}
-
-float Intake::GetPos(void)
-{
-	return positionPot->GetAverageVoltage();
+	/*pivotL->Set(STOPPED);
+	pivotR->Set(STOPPED);*/
 }

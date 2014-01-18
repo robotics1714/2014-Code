@@ -14,24 +14,18 @@ class Intake
 {
 private:
 	Victor* roller;
-	Victor* pivotL;
+	/*Victor* pivotL;
 	Victor* pivotR;
 	DigitalInput* upperLimit;
 	DigitalInput* lowerLimit;
-	AnalogChannel* positionPot;
+	AnalogChannel* positionPot;*/
 	
 public:
 	
-	Intake(int rollerPort, int pivotLPort, int pivotRPort, 
-			int upperLimitPort, int lowerLimitPort, int positionPotPort);
+	Intake(int rollerPort);
 	~Intake();
-	void Move(float speed);
-	void MoveToPosition(float pos);
 	void RollIn(float speed);
 	void Stop(void);
-	float GetPos(void);
-	
-	
 };
 
 #endif
