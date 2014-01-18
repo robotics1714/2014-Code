@@ -18,6 +18,7 @@ private:
 	//Private variables
 	int xPos, yPos;
 	int sock;
+	int missingPacketCount;
 	
 public:
 	//Public functions

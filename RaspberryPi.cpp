@@ -2,6 +2,8 @@
 
 RaspberryPi::RaspberryPi(string port)
 {
+	missingPacketCount = 0;
+	
 	int status;
 	struct addrinfo hints;
 	struct addrinfo* roboInfo;
@@ -59,11 +61,16 @@ void RaspberryPi::Read()
 	memset(msg, 0, sizeof(msg));
 	
 	//Recieve a packet, if the function returns 0 no message was recieved
-	if(recvfrom(sock, msg, sizeof(msg), MSG_DONTWAIT, NULL, NULL) == 0)
+	if(recvfrom(sock, msg, sizeof(msg), MSG_DONTWAIT, NULL, NULL) == -1)
 	{
 		cout<<"No data was recieved\n";
-		DriverStationLCD::GetInstance()->Printf(DriverStationLCD::kUser_Line4, 1, "NOO0");
-		DriverStationLCD::GetInstance()->UpdateLCD();
+		//If the robot doesn't recieve so many packets in a row, assume we lost connection
+		missingPacketCount++;
+		if(missingPacketCount >= 500)
+		{
+			xPos = -2;
+			yPos = -2;
+		}
 	}
 	else
 	{
@@ -78,5 +85,8 @@ void RaspberryPi::Read()
 		
 		xPos = atoi(xStr);
 		yPos = atoi(yStr);
+		
+		//Reset the missing packet count
+		missingPacketCount = 0;
 	}
 }
