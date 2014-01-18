@@ -87,7 +87,7 @@ void Intake::RollIn(float speed)
 	roller->Set(speed);
 }
 
-void Intake::Stop()
+void Intake::Stop(void)
 {
 	//Stop all of the motors
 	roller->Set(STOPPED);
@@ -95,7 +95,7 @@ void Intake::Stop()
 	pivotR->Set(STOPPED);
 }
 
-float Intake::GetPos()
+float Intake::GetPos(void)
 {
 	return positionPot->GetAverageVoltage();
 }

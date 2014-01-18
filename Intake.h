@@ -28,8 +28,8 @@ public:
 	void Move(float speed);
 	void MoveToPosition(float pos);
 	void RollIn(float speed);
-	void Stop();
-	float GetPos();
+	void Stop(void);
+	float GetPos(void);
 	
 	
 };
