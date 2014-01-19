@@ -13,6 +13,15 @@
 #define INTAKE_LOWER_LIMIT_PORT 1
 #define INTAKE_POSITION_POT_PORT 1*/
 
+//Ports for the Catapult TODO Change port number to real values
+#define LOADING_MOTOR_PORT 1
+#define HOLDING_MOTOR_PORT 1
+#define LOADED_LIMIT_PORT 1
+#define LOADING_ENCO_PORT_1 1
+#define LOADING_ENCO_PORT_2 1
+#define HOLDING_ENCO_PORT_1 1
+#define HOLDING_ENCO_PORT_2 1
+
 #define GYRO_PORT 1
 
 #define LEFT_ENCO_PORT_1 1
@@ -68,7 +77,8 @@ public:
 		gyro = new Gyro(GYRO_PORT);
 
 		intake = new Intake(INTAKE_ROLLER_PORT);
-		catapult = new Catapult;
+		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
+				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_ENCO_PORT_1, HOLDING_ENCO_PORT_2);
 
 		rpi = new RaspberryPi("17140");
 		LEDLight = new Relay(1);
@@ -113,7 +123,7 @@ public:
 		return turning;
 	}
 
-	bool GyroDrive(float desiredDriveAngle, float speed, int desiredDistance)//todo:fix for teleop
+	bool GyroDrive(float desiredDriveAngle, float speed, int desiredDistance)
 	{
 		bool driving = true;
 		double encoderInchesTraveled = fabs(leftEnco->GetDistance());//absolute value distance
@@ -161,7 +171,7 @@ public:
 		Timer* shootTimer = new Timer();
 		bool goalFound = false;
 		shootTimer->Reset();
-
+		
 		while(IsAutonomous() && !IsDisabled())
 		{
 			rpi->Read();

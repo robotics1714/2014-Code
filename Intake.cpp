@@ -2,7 +2,7 @@
 
 Intake::Intake(int rollerPort)
 {
-	roller = new Victor(rollerPort);
+	roller = new Talon(rollerPort);
 	/*pivotL = new Victor(pivotLPort);
 	pivotR = new Victor(pivotRPort);
 	upperLimit = new DigitalInput(upperLimitPort);
