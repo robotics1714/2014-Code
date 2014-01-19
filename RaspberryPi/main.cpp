@@ -54,7 +54,7 @@ int main()
 
         //Detect the goals in range
         //inRange(hsv, Scalar(0, 150, 120), Scalar(15, 190, 160), hsv);
-        inRange(hsv, Scalar(60, 50, 50), Scalar(90, 255, 255), hsv);
+        inRange(hsv, Scalar(60, 175, 45), Scalar(90, 255, 175), hsv);
 
         //find the contours
         findContours(hsv, contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
@@ -67,8 +67,9 @@ int main()
             approxPolyDP(contours[i], simpleContour, 5, true);
             double area = contourArea(simpleContour);
             rect = boundingRect(simpleContour);
-            if((rect.width > rect.height) && (simpleContour.size() == 4) && (area >= 250))
+            if((rect.width > rect.height) && (simpleContour.size() <= 4) /*&& (area >= 20)*/)
             {
+                cout<<area<<endl;
                 filteredContours.push_back(simpleContour);
             }
         }
@@ -127,7 +128,6 @@ Point DetectGoals(vector< vector< Point > > contours)
 
         //calculate the distance
         distance = sqrt(pow(midpoint.x, 2)+ pow(midpoint.y, 2));
-        cout<<distance<<endl;
         if(distance < closestGoalDist)
         {
             closestGoalDist = distance;
