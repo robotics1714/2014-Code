@@ -19,8 +19,7 @@
 #define LOADED_LIMIT_PORT 1
 #define LOADING_ENCO_PORT_1 1
 #define LOADING_ENCO_PORT_2 1
-#define HOLDING_ENCO_PORT_1 1
-#define HOLDING_ENCO_PORT_2 1
+#define HOLDING_POT_PORT 1
 
 #define GYRO_PORT 1
 
@@ -33,10 +32,20 @@
 #define ONE_BALL_AUTON 1
 #define TWO_BALL_AUTON 2
 
-//Autonomous step name definitions
-#define AUTON_ONE_DRIVE_FORWARDS 1
-#define AUTON_ONE_SHOOT 2
+//One ball autonomous step name definitions
+#define AUTON_ONE_SHOOT 1
+#define AUTON_ONE_DRIVE_FORWARDS 2
 #define AUTON_END 0
+
+//Two ball autonomous step name definitions
+#define AUTON_TWO_SCAN_FOR_HOT 1
+#define AUTON_TWO_FIRST_TURN 2
+#define AUTON_TWO_FIRST_SHOOT 3
+#define AUTON_TWO_SECOND_TURN 4
+#define AUTON_TWO_GET_SECOND_BALL 5
+#define AUTON_TWO_THIRD_TURN 6
+#define AUTON_TWO_SECOND_SHOOT 7
+#define AUTON_TWO_DRIVE_FORWARDS 8
 
 #define RPI_ERROR_VALUE -2 //The value the Raspberry Pi class sends when there is an error
 
@@ -53,7 +62,7 @@ class RobotDemo : public SimpleRobot
 	//Manipulators
 	Intake* intake;
 	Catapult* catapult;
-	
+
 	//Camera tracking objects
 	RaspberryPi* rpi;
 	Relay* LEDLight;
@@ -78,14 +87,14 @@ public:
 
 		intake = new Intake(INTAKE_ROLLER_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
-				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_ENCO_PORT_1, HOLDING_ENCO_PORT_2);
+				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_POT_PORT);
 
 		rpi = new RaspberryPi("17140");
 		LEDLight = new Relay(1);
 		LEDLight->Set(Relay::kForward);
 
 		autonMode = ONE_BALL_AUTON;
-		autonStep = AUTON_ONE_DRIVE_FORWARDS;
+		autonStep = AUTON_ONE_SHOOT;
 
 		lcd = DriverStationLCD::GetInstance();
 	}
@@ -168,9 +177,12 @@ public:
 	void Autonomous()
 	{
 		GetWatchdog().SetEnabled(false);
-		Timer* shootTimer = new Timer();
+		Timer* hotGoalTimer = new Timer();
 		bool goalFound = false;
-		shootTimer->Reset();
+		bool rightSideHot;
+		hotGoalTimer->Reset();
+		hotGoalTimer->Start();
+		gyro->Reset();
 		
 		while(IsAutonomous() && !IsDisabled())
 		{
@@ -179,14 +191,6 @@ public:
 			{
 				switch(autonStep)
 				{
-				case AUTON_ONE_DRIVE_FORWARDS:
-					//Drive forwards into the alliance zone and start the shoot timer
-					shootTimer->Start();
-					if(!GyroDrive(0, 1, 48))
-					{
-						autonStep = AUTON_ONE_SHOOT;
-					}
-					break;
 				case AUTON_ONE_SHOOT:
 					//Shoot the ball if the goal is hot or 6 seconds passes
 					if(!goalFound)
@@ -196,12 +200,117 @@ public:
 						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
 								(rpi->GetYPos() != RPI_ERROR_VALUE));
 					}
-					if((goalFound) ||(shootTimer->Get() >= 6))
+					if((goalFound) ||(hotGoalTimer->Get() >= 6))
 					{
-						if(!catapult->Shoot())
+						//Release the catapult to shoot and then drive forwards
+						if(!catapult->ReleaseHold())
 						{
-							autonStep = AUTON_END;
+							//Move to the next step
+							autonStep = AUTON_ONE_DRIVE_FORWARDS;
+							//Wait a quarter second for the catapult to finish moving up
+							Wait(0.25);
+							//Start reloading the catapult
+							catapult->StartLoad();
 						}
+					}
+					break;
+				case AUTON_ONE_DRIVE_FORWARDS:
+					//Drive forwards into the alliance zone and reload the catapult
+					if((!GyroDrive(0, 1, 48)) && (!(bool)catapult->Load()))
+					{
+						autonStep = AUTON_END;
+					}
+					break;
+				case AUTON_END:
+					break;
+				}
+			}
+			else if(autonMode == TWO_BALL_AUTON)
+			{
+				switch(autonStep)
+				{
+				case AUTON_TWO_SCAN_FOR_HOT:
+					//Wait up to 0.5 seconds to find the hot goal
+					goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
+							(rpi->GetYPos() != RPI_ERROR_VALUE));
+					if((goalFound))
+					{
+						//If the goal is found, the right side is hot and we can go to the next step
+						rightSideHot = true;
+						autonStep = AUTON_TWO_FIRST_SHOOT;
+					}
+					else if(hotGoalTimer->Get() >= 0.5)
+					{
+						//If the timer runs of, the right side is not hot and we can go to the next step
+						rightSideHot = false;
+						autonStep = AUTON_TWO_FIRST_TURN;
+					}
+					break;
+				case AUTON_TWO_FIRST_TURN:
+					//Turn to the left 5* if the right goal is not hot
+					if(!rightSideHot)
+					{
+						if(!GyroTurn(-5, 0.5))
+						{
+							autonStep = AUTON_TWO_FIRST_SHOOT;
+						}
+					}
+					else
+					{
+						autonStep = AUTON_TWO_FIRST_SHOOT;
+					}
+					break;
+				case AUTON_TWO_FIRST_SHOOT:
+					//Release the catapult to shoot
+					if(!catapult->ReleaseHold())
+					{
+						autonStep = AUTON_TWO_SECOND_TURN;
+						catapult->StartLoad();
+					}
+					break;
+				case AUTON_TWO_SECOND_TURN:
+					//Turn the robot so it's facing forwards and reload the catapult
+					if((!GyroTurn(0, 0.5)) && (!(bool)catapult->Load()))
+					{
+						autonStep = AUTON_TWO_GET_SECOND_BALL;
+					}
+					break;
+				case AUTON_TWO_GET_SECOND_BALL:
+					//Start up the intake and drive back to pick up the second ball
+					intake->RollIn(FULL_FORWARDS);
+					if(!GyroDrive(0, 0.5, 12))
+					{
+						autonStep = AUTON_TWO_THIRD_TURN;
+						leftEnco->Reset();
+						rightEnco->Reset();
+					}
+					break;
+				case AUTON_TWO_THIRD_TURN:
+					//If the right goal was originally hot, turn left
+					if(rightSideHot)
+					{
+						if(!GyroTurn(-5, 0.5))
+						{
+							autonStep = AUTON_TWO_SECOND_SHOOT;
+						}
+					}
+					else
+					{
+						autonStep = AUTON_TWO_SECOND_SHOOT;
+					}
+					break;
+				case AUTON_TWO_SECOND_SHOOT:
+					intake->Stop();
+					if(!catapult->ReleaseHold())
+					{
+						autonStep = AUTON_TWO_DRIVE_FORWARDS;
+						catapult->StartLoad();
+					}
+					break;
+				case AUTON_TWO_DRIVE_FORWARDS:
+					if(!GyroDrive(0, 1, 60) && (!(bool)catapult->Load()))
+					{
+						autonStep = AUTON_END;
 					}
 					break;
 				case AUTON_END:
@@ -219,12 +328,18 @@ public:
 		GetWatchdog().SetEnabled(true);
 		while (IsOperatorControl() && !IsDisabled())
 		{
-			//myRobot->TankDrive(leftStick, rightStick);
+			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
 			lcd->Clear();
 
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
+
+
+			//These functions need to called all of the time, but don't do anything until
+			//Their start method is called
+			catapult->Shoot();
+			catapult->Load();
 
 			lcd->UpdateLCD();
 			GetWatchdog().Feed();

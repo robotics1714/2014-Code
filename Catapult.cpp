@@ -1,18 +1,20 @@
 #include "Catapult.h"
 
 Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPort, 
-		int loadingEncoPort1, int loadingEncoPort2, int holdingEncoPort1, int holdingEncoPort2)
+		int loadingEncoPort1, int loadingEncoPort2, int holdingPotPort)
 {
 	//Initialize the components
 	loadingMotor = new Talon(loadingMotorPort);
 	holdingMotor = new Talon(holdingMotorPort);
 	loadedLimit = new DigitalInput(loadedLimitPort);
 	loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
-	holdingEnco = new Encoder(holdingEncoPort1, holdingEncoPort2);
-	
+	holdingPot = new AnalogChannel(holdingPotPort);
+
+	loadingState = IDLE_STATE;
+	shootingState = IDLE_STATE;
+
 	//Reset the encoder
 	loadingEnco->Reset();
-	holdingEnco->Reset();
 }
 
 Catapult::~Catapult()
@@ -21,7 +23,7 @@ Catapult::~Catapult()
 	delete holdingMotor;
 	delete loadedLimit;
 	delete loadingEnco;
-	delete holdingEnco;
+	delete holdingPot;
 }
 
 /*
@@ -32,7 +34,7 @@ Catapult::~Catapult()
 bool Catapult::Hold(void)
 {
 	//Move the holding motor until it gets to the hold position
-	if(holdingEnco->GetDistance() < HOLD_MOTOR_HOLD_POS)
+	if(holdingPot->GetAverageVoltage() > HOLD_MOTOR_HOLD_POS)
 	{
 		holdingMotor->Set(FULL_FORWARDS);
 		return true;
@@ -51,7 +53,7 @@ bool Catapult::Hold(void)
  */
 bool Catapult::ReleaseHold(void)
 {
-	if(holdingEnco->GetDistance() > HOLD_MOTOR_RELEASE_POS)
+	if(holdingPot->GetAverageVoltage() < HOLD_MOTOR_RELEASE_POS)
 	{
 		holdingMotor->Set(FULL_BACKWARDS);
 		return true;
@@ -63,14 +65,91 @@ bool Catapult::ReleaseHold(void)
 	}
 }
 
-bool Catapult::Load()
+void Catapult::StartLoad(void)
 {
-	return false;
+	if(loadingState == IDLE_STATE)
+	{
+		loadingState = LOAD_PULL_BACK;
+	}
 }
 
-bool Catapult::Shoot(void)
+/*
+ * int Load():
+ * Bring the catapult down into the loaded position
+ * Returns: the current loadingState
+ */
+int Catapult::Load(void)
 {
-	return false;
+	switch(loadingState)
+	{
+	//Step 1: Bring the catapult back to the limit
+	case LOAD_PULL_BACK:
+		loadingMotor->Set(FULL_BACKWARDS);
+		if((loadedLimit->Get() == PRESSED))
+		{
+			loadingMotor->Set(STOPPED);
+			loadingState = LOAD_HOLD;
+		}
+		break;
+	//Step 2: Hold the catapult in place
+	case LOAD_HOLD:
+		if(!Hold())
+		{
+			loadingState = LOAD_RELEASE_TENSION;
+		}
+		break;
+	//Step 3: Move the loading catapult back to allow the catapult to be released freely
+	case LOAD_RELEASE_TENSION:
+		loadingMotor->Set(FULL_FORWARDS);
+		if(loadingEnco->GetDistance() >= LOAD_MOTOR_TOP)
+		{
+			loadingMotor->Set(STOPPED);
+			loadingState = IDLE_STATE;
+		}
+		break;
+	default:
+		break;
+	}
+	return loadingState;
+}
+
+void Catapult::StartShoot(void)
+{
+	if(shootingState == IDLE_STATE)
+	{
+		shootingState = SHOOT_RELEASE;
+	}
+}
+
+/*
+ * int Shoot():
+ * Release the catapult and then reload it
+ * Returns: The current shootingState
+ */
+int Catapult::Shoot(void)
+{
+	switch(shootingState)
+	{
+	//Step 1: Release the holding motor
+	case SHOOT_RELEASE:
+		if(!ReleaseHold())
+		{
+			shootingState = SHOOT_RELOAD;
+			StartLoad();
+		}
+		break;
+	//Step 2: Re-Loading the catapult
+	case SHOOT_RELOAD:
+		if(!((bool)Load()))
+		{
+			shootingState = IDLE_STATE;
+		}
+		break;
+	default:
+		break;
+	}
+	
+	return shootingState;
 }
 
 double Catapult::GetLoadingDist(void)
@@ -80,5 +159,36 @@ double Catapult::GetLoadingDist(void)
 
 double Catapult::GetHoldingDist(void)
 {
-	return holdingEnco->GetDistance();
+	return holdingPot->GetAverageVoltage();
+}
+
+int Catapult::GetLoadedLimit(void)
+{
+	return loadedLimit->Get();
+}
+
+void Catapult::MoveHoldingMotor(float speed)
+{
+	holdingMotor->Set(speed);
+}
+
+void Catapult::MoveLoadingMotor(float speed)
+{
+	//Check for if the catapult will hit the limit switch
+	if((speed < 0) && (loadedLimit->Get() == PRESSED))//TODO check whether negative speed moves the catapult down
+	{
+		loadingMotor->Set(STOPPED);
+	}
+	else
+	{
+		holdingMotor->Set(speed);
+	}
+}
+
+void Catapult::Stop(void)
+{
+	loadingMotor->Set(STOPPED);
+	holdingMotor->Set(STOPPED);
+	loadingState = IDLE_STATE;
+	shootingState = IDLE_STATE;
 }
