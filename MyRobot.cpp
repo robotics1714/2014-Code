@@ -7,6 +7,7 @@
 
 //Ports for the Intake TODO Change port numbers to real values
 #define INTAKE_ROLLER_PORT 1
+#define BALL_SENSOR_PORT 1
 /*#define INTAKE_LEFT_PIVOT_PORT 1
 #define INTAKE_RIGHT_PIVOT_PORT 1
 #define INTAKE_UPPER_LIMIT_PORT 1
@@ -85,7 +86,7 @@ public:
 
 		gyro = new Gyro(GYRO_PORT);
 
-		intake = new Intake(INTAKE_ROLLER_PORT);
+		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
 				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_POT_PORT);
 
@@ -171,9 +172,6 @@ public:
 		return driving;
 	}
 
-	/**
-	 * Drive left & right motors for 2 seconds then stop
-	 */
 	void Autonomous()
 	{
 		GetWatchdog().SetEnabled(false);
@@ -277,8 +275,8 @@ public:
 					break;
 				case AUTON_TWO_GET_SECOND_BALL:
 					//Start up the intake and drive back to pick up the second ball
-					intake->RollIn(FULL_FORWARDS);
-					if(!GyroDrive(0, 0.5, 12))
+					intake->RollIn();
+					if(!GyroDrive(0, 0.5, -12))
 					{
 						autonStep = AUTON_TWO_THIRD_TURN;
 						leftEnco->Reset();
@@ -320,9 +318,6 @@ public:
 		}
 	}
 
-	/**
-	 * Runs the motors with arcade steering. 
-	 */
 	void OperatorControl()
 	{
 		GetWatchdog().SetEnabled(true);
@@ -334,8 +329,43 @@ public:
 
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
-
-
+			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "G: %f", gyro->GetAngle());
+			
+			//Driver controls
+			//Right trigger shoots the catapult
+			if(rightStick->GetRawButton(1))
+			{
+				catapult->StartShoot();
+			}
+			
+			//Move the intake in if the R-2 trigger is pressed
+			if(rightStick->GetRawButton(2))
+			{
+				intake->RollIn();
+			}
+			//Move it out if the R-5 trigger is pressed
+			else if(rightStick->GetRawButton(5))
+			{
+				intake->RollOut();
+			}
+			//Intake the ball only far enough for a pass if R-3 is pressed
+			else if(rightStick->GetRawButton(3))
+			{
+				intake->GetBallForPass();
+			}
+			//If none of them are pressed, stop the intake
+			else
+			{
+				intake->Stop();
+			}
+			
+			
+			//If the right-6 button and l-10 button are pressed, stop the catapult
+			if(rightStick->GetRawButton(6) && leftStick->GetRawButton(10))
+			{
+				catapult->Stop();
+			}
+			
 			//These functions need to called all of the time, but don't do anything until
 			//Their start method is called
 			catapult->Shoot();

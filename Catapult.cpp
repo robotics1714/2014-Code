@@ -67,7 +67,7 @@ bool Catapult::ReleaseHold(void)
 
 void Catapult::StartLoad(void)
 {
-	if(loadingState == IDLE_STATE)
+	if((shootingState == IDLE_STATE) && (loadingState == IDLE_STATE))
 	{
 		loadingState = LOAD_PULL_BACK;
 	}
@@ -84,7 +84,7 @@ int Catapult::Load(void)
 	{
 	//Step 1: Bring the catapult back to the limit
 	case LOAD_PULL_BACK:
-		loadingMotor->Set(FULL_BACKWARDS);
+		loadingMotor->Set(FULL_FORWARDS);
 		if((loadedLimit->Get() == PRESSED))
 		{
 			loadingMotor->Set(STOPPED);
@@ -100,8 +100,8 @@ int Catapult::Load(void)
 		break;
 	//Step 3: Move the loading catapult back to allow the catapult to be released freely
 	case LOAD_RELEASE_TENSION:
-		loadingMotor->Set(FULL_FORWARDS);
-		if(loadingEnco->GetDistance() >= LOAD_MOTOR_TOP)
+		loadingMotor->Set(FULL_BACKWARDS);
+		if(loadingEnco->GetDistance() <= LOAD_MOTOR_RELEASED)
 		{
 			loadingMotor->Set(STOPPED);
 			loadingState = IDLE_STATE;
@@ -115,7 +115,7 @@ int Catapult::Load(void)
 
 void Catapult::StartShoot(void)
 {
-	if(shootingState == IDLE_STATE)
+	if((shootingState == IDLE_STATE) && (loadingState == IDLE_STATE))
 	{
 		shootingState = SHOOT_RELEASE;
 	}

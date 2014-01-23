@@ -3,13 +3,13 @@
 
 #include "Talon.h"
 #include "DigitalInput.h"
-#include "AnalogChannel.h"
 #include "GlobalDefines.h"
 
 class Intake
 {
 private:
 	Talon* roller;
+	DigitalInput* ballSensor;
 	/*Victor* pivotL;
 	Victor* pivotR;
 	DigitalInput* upperLimit;
@@ -18,9 +18,11 @@ private:
 	
 public:
 	
-	Intake(int rollerPort);
+	Intake(int rollerPort, int ballSensorPort);
 	~Intake();
-	void RollIn(float speed);
+	void RollIn(void);
+	void RollOut(void);
+	void GetBallForPass(void);
 	void Stop(void);
 };
 

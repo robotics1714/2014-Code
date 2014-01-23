@@ -1,8 +1,9 @@
 #include "Intake.h"
 
-Intake::Intake(int rollerPort)
+Intake::Intake(int rollerPort, int ballSensorPort)
 {
 	roller = new Talon(rollerPort);
+	ballSensor = new DigitalInput(ballSensorPort);
 	/*pivotL = new Victor(pivotLPort);
 	pivotR = new Victor(pivotRPort);
 	upperLimit = new DigitalInput(upperLimitPort);
@@ -13,6 +14,7 @@ Intake::Intake(int rollerPort)
 Intake::~Intake()
 {
 	delete roller;
+	delete ballSensor;
 	/*delete pivotL;
 	delete pivotR;
 	delete upperLimit;
@@ -85,10 +87,41 @@ void Intake::MoveToPosition(float pos)
 	}
 }*/
 
-void Intake::RollIn(float speed) 
+/*
+ * void RollIn():
+ * Move the intake into the shooter
+ */
+void Intake::RollIn(void)
 {
-	//make roller motor move at SPEED
-	roller->Set(speed);
+	//make roller motor move at full speed to pick up the ball
+	roller->Set(FULL_FORWARDS);
+}
+
+/*
+ * void RollOut():
+ * Move the intake backwards to remove a ball from the intake
+ */
+void Intake::RollOut(void)
+{
+	//make the roller move full speed backwards to expell the ball
+	roller->Set(FULL_BACKWARDS);
+}
+
+/*
+ * void GetBallForPass():
+ * Move the intake to load a ball until there is a ball in there is a ball in the intake
+ */
+void Intake::GetBallForPass(void)
+{
+	//Roll the intake if there is no ball in the intake
+	if(ballSensor->Get() == RELEASED)
+	{
+		roller->Set(FULL_FORWARDS);
+	}
+	else
+	{
+		roller->Set(STOPPED);
+	}
 }
 
 void Intake::Stop(void)

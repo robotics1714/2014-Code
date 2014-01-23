@@ -12,8 +12,8 @@
 #define HOLD_MOTOR_RELEASE_POS 2
 
 //Encoder values for the loading motors
-#define LOAD_MOTOR_TOP 1000
-#define LOAD_MOTOR_LOADED 0
+#define LOAD_MOTOR_RELEASED 0
+#define LOAD_MOTOR_LOADED 1000
 
 //States for loading
 #define LOAD_PULL_BACK 1
