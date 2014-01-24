@@ -67,7 +67,7 @@ bool Catapult::ReleaseHold(void)
 
 void Catapult::StartLoad(void)
 {
-	if((shootingState == IDLE_STATE) && (loadingState == IDLE_STATE))
+	if((shootingState != SHOOT_RELOAD) && (loadingState == IDLE_STATE))
 	{
 		loadingState = LOAD_PULL_BACK;
 	}
@@ -134,8 +134,8 @@ int Catapult::Shoot(void)
 	case SHOOT_RELEASE:
 		if(!ReleaseHold())
 		{
-			shootingState = SHOOT_RELOAD;
 			StartLoad();
+			shootingState = SHOOT_RELOAD;
 		}
 		break;
 	//Step 2: Re-Loading the catapult

@@ -6,4 +6,5 @@
 *.c
 *.o
 *.out
+*.rtf
 /PPC603gnu
