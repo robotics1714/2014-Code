@@ -89,7 +89,7 @@ void Intake::MoveToPosition(float pos)
 
 /*
  * void RollIn():
- * Move the intake into the shooter
+ * Move the roller in so the ball goes in the robot
  */
 void Intake::RollIn(void)
 {
@@ -99,7 +99,7 @@ void Intake::RollIn(void)
 
 /*
  * void RollOut():
- * Move the intake backwards to remove a ball from the intake
+ * Move the intake out to remove a ball from the intake
  */
 void Intake::RollOut(void)
 {
@@ -109,18 +109,18 @@ void Intake::RollOut(void)
 
 /*
  * void GetBallForPass():
- * Move the intake to load a ball until there is a ball in there is a ball in the intake
+ * Move the intake to load a ball until there is a ball in the intake
  */
 void Intake::GetBallForPass(void)
 {
 	//Roll the intake if there is no ball in the intake
 	if(ballSensor->Get() == RELEASED)
 	{
-		roller->Set(FULL_FORWARDS);
+		RollIn();
 	}
 	else
 	{
-		roller->Set(STOPPED);
+		Stop();
 	}
 }
 

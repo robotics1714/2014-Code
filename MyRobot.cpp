@@ -76,6 +76,7 @@ class RobotDemo : public SimpleRobot
 public:
 	RobotDemo()
 	{
+		//Initialize the objects for the drive train
 		myRobot = new RobotDrive(1, 2);
 		leftEnco = new Encoder(LEFT_ENCO_PORT_1, LEFT_ENCO_PORT_2);
 		rightEnco = new Encoder(RIGHT_ENCO_PORT_1, RIGHT_ENCO_PORT_2);
@@ -84,19 +85,25 @@ public:
 		leftStick = new Joystick(1);
 		rightStick = new Joystick(2);
 
+		//Initialize the gyro
 		gyro = new Gyro(GYRO_PORT);
+		gyro->Reset();
 
+		//Initialize the manipulators
 		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
 				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_POT_PORT);
 
+		//Initialize the objects needed for camera tracking
 		rpi = new RaspberryPi("17140");
 		LEDLight = new Relay(1);
 		LEDLight->Set(Relay::kForward);
 
+		//Set the autonomous modes
 		autonMode = ONE_BALL_AUTON;
 		autonStep = AUTON_ONE_SHOOT;
 
+		//Initialize the lcd
 		lcd = DriverStationLCD::GetInstance();
 	}
 
@@ -326,10 +333,9 @@ public:
 			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
 			lcd->Clear();
-
+			
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
-			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "G: %f", gyro->GetAngle());
 			
 			//Driver controls
 			//Right trigger shoots the catapult
@@ -413,4 +419,3 @@ public:
 };
 
 START_ROBOT_CLASS(RobotDemo);
-
