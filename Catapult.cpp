@@ -9,7 +9,9 @@ Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPo
 	loadedLimit = new DigitalInput(loadedLimitPort);
 	loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
 	holdingPot = new AnalogChannel(holdingPotPort);
-
+	waitTimer = new Timer();
+	waitTimer->Reset();
+	
 	loadingState = IDLE_STATE;
 	shootingState = IDLE_STATE;
 
@@ -24,6 +26,7 @@ Catapult::~Catapult()
 	delete loadedLimit;
 	delete loadingEnco;
 	delete holdingPot;
+	delete waitTimer;
 }
 
 /*
@@ -134,11 +137,22 @@ int Catapult::Shoot(void)
 	case SHOOT_RELEASE:
 		if(!ReleaseHold())
 		{
+			shootingState = SHOOT_WAIT;
+			//Prepare the wait timer for the waiting step
+			waitTimer->Reset();
+			waitTimer->Start();
+		}
+		break;
+	//Step 2: Wait for the catapult to finish shooting
+	case SHOOT_WAIT:
+		if(waitTimer->Get() >= 0.9)
+		{
 			StartLoad();
+			waitTimer->Stop();
 			shootingState = SHOOT_RELOAD;
 		}
 		break;
-	//Step 2: Re-Loading the catapult
+	//Step 3: Re-Loading the catapult
 	case SHOOT_RELOAD:
 		if(!((bool)Load()))
 		{
@@ -152,26 +166,31 @@ int Catapult::Shoot(void)
 	return shootingState;
 }
 
+//Returns the encoder value of the loading motor
 double Catapult::GetLoadingDist(void)
 {
 	return loadingEnco->GetDistance();
 }
 
+//Returns the pot value of the holding motor
 double Catapult::GetHoldingDist(void)
 {
 	return holdingPot->GetAverageVoltage();
 }
 
+//Returns whether or not the loading limit is pressed
 int Catapult::GetLoadedLimit(void)
 {
 	return loadedLimit->Get();
 }
 
+//Manually moves the holding motor
 void Catapult::MoveHoldingMotor(float speed)
 {
 	holdingMotor->Set(speed);
 }
 
+//Manually moves the loading motor and stops it if it hits the limit switch
 void Catapult::MoveLoadingMotor(float speed)
 {
 	//Check for if the catapult will hit the limit switch
@@ -185,6 +204,7 @@ void Catapult::MoveLoadingMotor(float speed)
 	}
 }
 
+//Stops EVERYTHING
 void Catapult::Stop(void)
 {
 	loadingMotor->Set(STOPPED);

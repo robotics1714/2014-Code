@@ -333,9 +333,8 @@ public:
 			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
 			lcd->Clear();
-			
-			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
-			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
+			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
+			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
 			
 			//Driver controls
 			//Right trigger shoots the catapult

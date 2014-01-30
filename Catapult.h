@@ -5,6 +5,7 @@
 #include "DigitalInput.h"
 #include "Encoder.h"
 #include "AnalogChannel.h"
+#include "Timer.h"
 #include "GlobalDefines.h"
 
 //Potentiometer values for the holding motor
@@ -22,7 +23,8 @@
 
 //States for shooting
 #define SHOOT_RELEASE 1
-#define SHOOT_RELOAD 2
+#define SHOOT_WAIT   2
+#define SHOOT_RELOAD 3
 
 #define IDLE_STATE 0
 
@@ -34,6 +36,7 @@ private:
 	DigitalInput* loadedLimit; //Limmit switch the signals if the catapult is the lowest in can go
 	Encoder* loadingEnco; //Encoder for the loading motor
 	AnalogChannel* holdingPot; //Potentiometer for the holding motor
+	Timer* waitTimer;//Timer to wait for the catapult to finish shooting before pulling it back
 	int loadingState;
 	int shootingState;
 	
