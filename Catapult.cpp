@@ -145,7 +145,7 @@ int Catapult::Shoot(void)
 		break;
 	//Step 2: Wait for the catapult to finish shooting
 	case SHOOT_WAIT:
-		if(waitTimer->Get() >= 0.9)
+		if(waitTimer->Get() >= CATAPULT_WAIT_TIME)
 		{
 			StartLoad();
 			waitTimer->Stop();

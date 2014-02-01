@@ -26,6 +26,9 @@
 #define SHOOT_WAIT   2
 #define SHOOT_RELOAD 3
 
+//The amount of time the program needs to wait for the catapult to stop shooting so it can be reloaded
+#define CATAPULT_WAIT_TIME 0.9 
+
 #define IDLE_STATE 0
 
 class Catapult

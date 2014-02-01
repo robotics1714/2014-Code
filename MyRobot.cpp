@@ -35,18 +35,24 @@
 
 //One ball autonomous step name definitions
 #define AUTON_ONE_SHOOT 1
-#define AUTON_ONE_DRIVE_FORWARDS 2
+#define AUTON_ONE_WAIT 2
+#define AUTON_ONE_DRIVE_FORWARDS 3
 #define AUTON_END 0
 
 //Two ball autonomous step name definitions
 #define AUTON_TWO_SCAN_FOR_HOT 1
 #define AUTON_TWO_FIRST_TURN 2
 #define AUTON_TWO_FIRST_SHOOT 3
-#define AUTON_TWO_SECOND_TURN 4
-#define AUTON_TWO_GET_SECOND_BALL 5
-#define AUTON_TWO_THIRD_TURN 6
-#define AUTON_TWO_SECOND_SHOOT 7
-#define AUTON_TWO_DRIVE_FORWARDS 8
+#define AUTON_TWO_FIRST_WAIT 4
+#define AUTON_TWO_SECOND_TURN 5
+#define AUTON_TWO_GET_SECOND_BALL 6
+#define AUTON_TWO_THIRD_TURN 7
+#define AUTON_TWO_SECOND_SHOOT 8
+#define AUTON_TWO_SECOND_WAIT 9
+#define AUTON_TWO_DRIVE_FORWARDS 10
+
+//Defines for SmartDashboard Keys
+#define NUM_BALL_AUTO "Number of Balls in Auto"
 
 #define RPI_ERROR_VALUE -2 //The value the Raspberry Pi class sends when there is an error
 
@@ -183,11 +189,25 @@ public:
 	{
 		GetWatchdog().SetEnabled(false);
 		Timer* hotGoalTimer = new Timer();
+		Timer* reloadTimer = new Timer();
 		bool goalFound = false;
 		bool rightSideHot;
 		hotGoalTimer->Reset();
 		hotGoalTimer->Start();
 		gyro->Reset();
+		
+		//Find out the type of autonomous we are using
+		int autonType = (int)SmartDashboard::GetNumber(NUM_BALL_AUTO);
+		if(autonType == 2)//Set the auton mode to two if we are doing a two ball auto
+		{
+			autonMode = TWO_BALL_AUTON;
+			autonStep = AUTON_TWO_SCAN_FOR_HOT;
+		}
+		else//Set the auton to one if the value on SD is set to 1 or another random value
+		{
+			autonMode = ONE_BALL_AUTON;
+			autonStep = AUTON_ONE_SHOOT;
+		}
 		
 		while(IsAutonomous() && !IsDisabled())
 		{
@@ -205,18 +225,26 @@ public:
 						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
 								(rpi->GetYPos() != RPI_ERROR_VALUE));
 					}
-					if((goalFound) ||(hotGoalTimer->Get() >= 6))
+					if((goalFound) ||(hotGoalTimer->Get() >= 5.25))
 					{
 						//Release the catapult to shoot and then drive forwards
 						if(!catapult->ReleaseHold())
 						{
 							//Move to the next step
-							autonStep = AUTON_ONE_DRIVE_FORWARDS;
-							//Wait a quarter second for the catapult to finish moving up
-							Wait(0.25);
-							//Start reloading the catapult
-							catapult->StartLoad();
+							autonStep = AUTON_ONE_WAIT;
+							//Start the reload timer
+							reloadTimer->Reset();
+							reloadTimer->Start();
 						}
+					}
+					break;
+				case AUTON_ONE_WAIT:
+					if(reloadTimer->Get() >= CATAPULT_WAIT_TIME)
+					{
+						autonStep = AUTON_ONE_DRIVE_FORWARDS;
+						reloadTimer->Stop();
+						//Start reloading the catapult
+						catapult->StartLoad();
 					}
 					break;
 				case AUTON_ONE_DRIVE_FORWARDS:
@@ -269,8 +297,17 @@ public:
 					//Release the catapult to shoot
 					if(!catapult->ReleaseHold())
 					{
+						autonStep = AUTON_TWO_FIRST_WAIT;
+						reloadTimer->Reset();
+						reloadTimer->Start();
+					}
+					break;
+				case AUTON_TWO_FIRST_WAIT:
+					if(reloadTimer->Get() >= CATAPULT_WAIT_TIME)
+					{
 						autonStep = AUTON_TWO_SECOND_TURN;
 						catapult->StartLoad();
+						reloadTimer->Stop();
 					}
 					break;
 				case AUTON_TWO_SECOND_TURN:
@@ -283,7 +320,7 @@ public:
 				case AUTON_TWO_GET_SECOND_BALL:
 					//Start up the intake and drive back to pick up the second ball
 					intake->RollIn();
-					if(!GyroDrive(0, 0.5, -12))
+					if(!GyroDrive(0, -0.5, -12))
 					{
 						autonStep = AUTON_TWO_THIRD_TURN;
 						leftEnco->Reset();
@@ -308,8 +345,17 @@ public:
 					intake->Stop();
 					if(!catapult->ReleaseHold())
 					{
+						autonStep = AUTON_TWO_SECOND_WAIT;
+						reloadTimer->Reset();
+						reloadTimer->Start();
+					}
+					break;
+				case AUTON_TWO_SECOND_WAIT:
+					if(reloadTimer->Get() >= CATAPULT_WAIT_TIME)
+					{
 						autonStep = AUTON_TWO_DRIVE_FORWARDS;
 						catapult->StartLoad();
+						reloadTimer->Stop();
 					}
 					break;
 				case AUTON_TWO_DRIVE_FORWARDS:
