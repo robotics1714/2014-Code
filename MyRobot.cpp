@@ -34,13 +34,14 @@
 #define TWO_BALL_AUTON 2
 
 //One ball autonomous step name definitions
-#define AUTON_ONE_SHOOT 1
-#define AUTON_ONE_WAIT 2
-#define AUTON_ONE_DRIVE_FORWARDS 3
+#define AUTON_ONE_RELOAD 1
+#define AUTON_ONE_SHOOT 2
+#define AUTON_ONE_WAIT 3
+#define AUTON_ONE_DRIVE_FORWARDS 4
 #define AUTON_END 0
 
 //Two ball autonomous step name definitions
-#define AUTON_TWO_SCAN_FOR_HOT 1
+#define AUTON_TWO_RELOAD 1
 #define AUTON_TWO_FIRST_TURN 2
 #define AUTON_TWO_FIRST_SHOOT 3
 #define AUTON_TWO_FIRST_WAIT 4
@@ -191,24 +192,26 @@ public:
 		Timer* hotGoalTimer = new Timer();
 		Timer* reloadTimer = new Timer();
 		bool goalFound = false;
-		bool rightSideHot;
+		bool rightSideHot = false;
 		hotGoalTimer->Reset();
 		hotGoalTimer->Start();
 		gyro->Reset();
-		
+
 		//Find out the type of autonomous we are using
 		int autonType = (int)SmartDashboard::GetNumber(NUM_BALL_AUTO);
 		if(autonType == 2)//Set the auton mode to two if we are doing a two ball auto
 		{
 			autonMode = TWO_BALL_AUTON;
-			autonStep = AUTON_TWO_SCAN_FOR_HOT;
+			autonStep = AUTON_TWO_RELOAD;
+			catapult->StartLoad();
 		}
 		else//Set the auton to one if the value on SD is set to 1 or another random value
 		{
 			autonMode = ONE_BALL_AUTON;
-			autonStep = AUTON_ONE_SHOOT;
+			autonStep = AUTON_ONE_RELOAD;
+			catapult->StartLoad();
 		}
-		
+
 		while(IsAutonomous() && !IsDisabled())
 		{
 			rpi->Read();
@@ -216,8 +219,8 @@ public:
 			{
 				switch(autonStep)
 				{
-				case AUTON_ONE_SHOOT:
-					//Shoot the ball if the goal is hot or 6 seconds passes
+				case AUTON_ONE_RELOAD:
+					//Reload the catapult and find the hot goal
 					if(!goalFound)
 					{
 						//This is put into an if statement to protect against the 
@@ -225,17 +228,20 @@ public:
 						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
 								(rpi->GetYPos() != RPI_ERROR_VALUE));
 					}
-					if((goalFound) ||(hotGoalTimer->Get() >= 5.25))
+					if(!(bool)catapult->Load() && (goalFound || hotGoalTimer->Get() >= 5.25))
 					{
-						//Release the catapult to shoot and then drive forwards
-						if(!catapult->ReleaseHold())
-						{
-							//Move to the next step
-							autonStep = AUTON_ONE_WAIT;
-							//Start the reload timer
-							reloadTimer->Reset();
-							reloadTimer->Start();
-						}
+						autonStep = AUTON_ONE_SHOOT;
+					}
+					break;
+				case AUTON_ONE_SHOOT:
+					//Shoot the catapult
+					if(!catapult->ReleaseHold())
+					{
+						//Move on to the next step when the catapult is released
+						autonStep = AUTON_ONE_WAIT;
+						//Start the wait timer
+						reloadTimer->Reset();
+						reloadTimer->Start();
 					}
 					break;
 				case AUTON_ONE_WAIT:
@@ -249,7 +255,7 @@ public:
 					break;
 				case AUTON_ONE_DRIVE_FORWARDS:
 					//Drive forwards into the alliance zone and reload the catapult
-					if((!GyroDrive(0, 1, 48)) && (!(bool)catapult->Load()))
+					if((!GyroDrive(0, 0.75, 48)) && (!(bool)catapult->Load()))
 					{
 						autonStep = AUTON_END;
 					}
@@ -262,11 +268,19 @@ public:
 			{
 				switch(autonStep)
 				{
-				case AUTON_TWO_SCAN_FOR_HOT:
-					//Wait up to 0.5 seconds to find the hot goal
-					goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
-							(rpi->GetYPos() != RPI_ERROR_VALUE));
-					if((goalFound))
+				case AUTON_TWO_RELOAD:
+					//Determine if the hot goal is on the right
+					if((rpi->GetXPos() != RPI_ERROR_VALUE) && 
+							(rpi->GetYPos() != RPI_ERROR_VALUE))
+					{
+						rightSideHot = true;
+					}
+					//Reload the catapult
+					if(!catapult->Load())
+					{
+						autonStep = AUTON_TWO_FIRST_TURN;
+					}
+					/*if((goalFound))
 					{
 						//If the goal is found, the right side is hot and we can go to the next step
 						rightSideHot = true;
@@ -277,7 +291,7 @@ public:
 						//If the timer runs of, the right side is not hot and we can go to the next step
 						rightSideHot = false;
 						autonStep = AUTON_TWO_FIRST_TURN;
-					}
+					}*/
 					break;
 				case AUTON_TWO_FIRST_TURN:
 					//Turn to the left 5* if the right goal is not hot
@@ -359,7 +373,7 @@ public:
 					}
 					break;
 				case AUTON_TWO_DRIVE_FORWARDS:
-					if(!GyroDrive(0, 1, 60) && (!(bool)catapult->Load()))
+					if(!GyroDrive(0, 0.75, 60) && (!(bool)catapult->Load()))
 					{
 						autonStep = AUTON_END;
 					}
@@ -381,14 +395,14 @@ public:
 			lcd->Clear();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
-			
+
 			//Driver controls
 			//Right trigger shoots the catapult
 			if(rightStick->GetRawButton(1))
 			{
 				catapult->StartShoot();
 			}
-			
+
 			//Move the intake in if the R-2 trigger is pressed
 			if(rightStick->GetRawButton(2))
 			{
@@ -409,14 +423,14 @@ public:
 			{
 				intake->Stop();
 			}
-			
-			
+
+
 			//If the right-6 button and l-10 button are pressed, stop the catapult
 			if(rightStick->GetRawButton(6) && leftStick->GetRawButton(10))
 			{
 				catapult->Stop();
 			}
-			
+
 			//These functions need to called all of the time, but don't do anything until
 			//Their start method is called
 			catapult->Shoot();
