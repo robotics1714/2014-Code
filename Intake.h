@@ -23,6 +23,7 @@ public:
 	void RollIn(void);
 	void RollOut(void);
 	void GetBallForPass(void);
+	int GetBallSensor(void);
 	void Stop(void);
 };
 

@@ -1,14 +1,15 @@
 #include "Catapult.h"
 
 Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPort, 
-		int loadingEncoPort1, int loadingEncoPort2, int holdingPotPort)
+		int holdingLimitPort, int loadingEncoPort1, int loadingEncoPort2)
 {
 	//Initialize the components
 	loadingMotor = new Talon(loadingMotorPort);
 	holdingMotor = new Talon(holdingMotorPort);
 	loadedLimit = new DigitalInput(loadedLimitPort);
+	holdingLimit = new DigitalInput(holdingLimitPort);
 	loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
-	holdingPot = new AnalogChannel(holdingPotPort);
+	//holdingPot = new AnalogChannel(holdingPotPort);
 	waitTimer = new Timer();
 	waitTimer->Reset();
 	
@@ -24,8 +25,9 @@ Catapult::~Catapult()
 	delete loadingMotor;
 	delete holdingMotor;
 	delete loadedLimit;
+	delete holdingLimit;
 	delete loadingEnco;
-	delete holdingPot;
+	//delete holdingPot;
 	delete waitTimer;
 }
 
@@ -34,7 +36,7 @@ Catapult::~Catapult()
  * Move the holding motor to hold down the catapult
  * Returns: true if it's in the process of going into hold position, false if it's finished
  */
-bool Catapult::Hold(void)
+/*bool Catapult::Hold(void)
 {
 	//Move the holding motor until it gets to the hold position
 	if(holdingPot->GetAverageVoltage() > HOLD_MOTOR_HOLD_POS)
@@ -47,7 +49,7 @@ bool Catapult::Hold(void)
 		holdingMotor->Set(STOPPED);
 		return false;
 	}
-}
+}*/
 
 /*
  * bool ReleaseHold():
@@ -56,11 +58,13 @@ bool Catapult::Hold(void)
  */
 bool Catapult::ReleaseHold(void)
 {
-	if(holdingPot->GetAverageVoltage() < HOLD_MOTOR_RELEASE_POS)
+	//If the holding limit switch is released, move the holding motor
+	if(holdingLimit->Get() == RELEASED)
 	{
-		holdingMotor->Set(FULL_BACKWARDS);
+		holdingMotor->Set(FULL_FORWARDS);
 		return true;
 	}
+	//If the switch is pressed, stop the motor
 	else
 	{
 		holdingMotor->Set(STOPPED);
@@ -91,17 +95,10 @@ int Catapult::Load(void)
 		if((loadedLimit->Get() == PRESSED))
 		{
 			loadingMotor->Set(STOPPED);
-			loadingState = LOAD_HOLD;
-		}
-		break;
-	//Step 2: Hold the catapult in place
-	case LOAD_HOLD:
-		if(!Hold())
-		{
 			loadingState = LOAD_RELEASE_TENSION;
 		}
 		break;
-	//Step 3: Move the loading catapult back to allow the catapult to be released freely
+	//Step 2: Move the loading catapult back to allow the catapult to be released freely
 	case LOAD_RELEASE_TENSION:
 		loadingMotor->Set(FULL_BACKWARDS);
 		if(loadingEnco->GetDistance() <= LOAD_MOTOR_RELEASED)
@@ -173,9 +170,14 @@ double Catapult::GetLoadingDist(void)
 }
 
 //Returns the pot value of the holding motor
-double Catapult::GetHoldingDist(void)
+/*double Catapult::GetHoldingDist(void)
 {
 	return holdingPot->GetAverageVoltage();
+}*/
+
+int Catapult::GetHoldingLimit(void)
+{
+	return holdingLimit->Get();
 }
 
 //Returns whether or not the loading limit is pressed

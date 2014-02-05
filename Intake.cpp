@@ -124,6 +124,11 @@ void Intake::GetBallForPass(void)
 	}
 }
 
+int Intake::GetBallSensor(void)
+{
+	return ballSensor->Get();
+}
+
 void Intake::Stop(void)
 {
 	//Stop all of the motors

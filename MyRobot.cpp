@@ -6,8 +6,8 @@
 #include "Catapult.h"
 
 //Ports for the Intake TODO Change port numbers to real values
-#define INTAKE_ROLLER_PORT 1
-#define BALL_SENSOR_PORT 1
+#define INTAKE_ROLLER_PORT 5
+#define BALL_SENSOR_PORT 9
 /*#define INTAKE_LEFT_PIVOT_PORT 1
 #define INTAKE_RIGHT_PIVOT_PORT 1
 #define INTAKE_UPPER_LIMIT_PORT 1
@@ -15,19 +15,20 @@
 #define INTAKE_POSITION_POT_PORT 1*/
 
 //Ports for the Catapult TODO Change port number to real values
-#define LOADING_MOTOR_PORT 1
-#define HOLDING_MOTOR_PORT 1
-#define LOADED_LIMIT_PORT 1
-#define LOADING_ENCO_PORT_1 1
-#define LOADING_ENCO_PORT_2 1
-#define HOLDING_POT_PORT 1
+#define LOADING_MOTOR_PORT 3
+#define HOLDING_MOTOR_PORT 4
+#define LOADED_LIMIT_PORT 7
+#define HOLDING_LIMIT_PORT 8
+#define LOADING_ENCO_PORT_1 5
+#define LOADING_ENCO_PORT_2 6
+//#define HOLDING_POT_PORT 1
 
 #define GYRO_PORT 1
 
 #define LEFT_ENCO_PORT_1 1
-#define LEFT_ENCO_PORT_2 1
-#define RIGHT_ENCO_PORT_1 1
-#define RIGHT_ENCO_PORT_2 1
+#define LEFT_ENCO_PORT_2 2
+#define RIGHT_ENCO_PORT_1 3
+#define RIGHT_ENCO_PORT_2 4
 
 //Definitions for the different autonomous modes
 #define ONE_BALL_AUTON 1
@@ -99,7 +100,7 @@ public:
 		//Initialize the manipulators
 		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
-				LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2, HOLDING_POT_PORT);
+				HOLDING_LIMIT_PORT, LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2);
 
 		//Initialize the objects needed for camera tracking
 		rpi = new RaspberryPi("17140");
@@ -395,7 +396,7 @@ public:
 			lcd->Clear();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
-
+			
 			//Driver controls
 			//Right trigger shoots the catapult
 			if(rightStick->GetRawButton(1))
