@@ -1,23 +1,26 @@
 #include "Catapult.h"
 
 Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPort, 
-		int holdingLimitPort, int loadingEncoPort1, int loadingEncoPort2)
+		int holdingLimitPort)
 {
 	//Initialize the components
 	loadingMotor = new Talon(loadingMotorPort);
 	holdingMotor = new Talon(holdingMotorPort);
 	loadedLimit = new DigitalInput(loadedLimitPort);
 	holdingLimit = new DigitalInput(holdingLimitPort);
-	loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
+	//loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
 	//holdingPot = new AnalogChannel(holdingPotPort);
 	waitTimer = new Timer();
 	waitTimer->Reset();
+	unwindTimer = new Timer();
+	unwindTimer->Reset();
+	releaseTimer = new Timer();
+	releaseTimer->Reset();
 	
 	loadingState = IDLE_STATE;
 	shootingState = IDLE_STATE;
-
-	//Reset the encoder
-	loadingEnco->Reset();
+	
+	releasing = false;
 }
 
 Catapult::~Catapult()
@@ -26,9 +29,11 @@ Catapult::~Catapult()
 	delete holdingMotor;
 	delete loadedLimit;
 	delete holdingLimit;
-	delete loadingEnco;
+	//delete loadingEnco;
 	//delete holdingPot;
 	delete waitTimer;
+	delete unwindTimer;
+	delete releaseTimer;
 }
 
 /*
@@ -51,6 +56,17 @@ Catapult::~Catapult()
 	}
 }*/
 
+void Catapult::StartRelease(void)
+{
+	//Make sure the catapult is not already releasing
+	if(!releasing)
+	{
+		releasing = true;
+		releaseTimer->Reset();
+		releaseTimer->Start();
+	}
+}
+
 /*
  * bool ReleaseHold():
  * Move the holding motor to allow the catapult to release
@@ -58,18 +74,31 @@ Catapult::~Catapult()
  */
 bool Catapult::ReleaseHold(void)
 {
-	//If the holding limit switch is released, move the holding motor
-	if(holdingLimit->Get() == RELEASED)
+	//If the robot is supposed to release, move the motor
+	if(releasing)
 	{
-		holdingMotor->Set(FULL_FORWARDS);
-		return true;
+		//If a time has passed and the limit is pressed, stop moving the release
+		if((releaseTimer->Get() >= RELEASE_TIMER) && (holdingLimit->Get() == PRESSED))
+		{
+			holdingMotor->Set(STOPPED);
+			releaseTimer->Stop();
+			releasing = false;
+		}
+		else
+		{
+			holdingMotor->Set(FULL_FORWARDS);
+			return true;
+		}
 	}
-	//If the switch is pressed, stop the motor
 	else
 	{
 		holdingMotor->Set(STOPPED);
 		return false;
 	}
+	
+	//If we get here, something went wrong so stop the motor
+	holdingMotor->Set(STOPPED);
+	return false;
 }
 
 void Catapult::StartLoad(void)
@@ -91,19 +120,22 @@ int Catapult::Load(void)
 	{
 	//Step 1: Bring the catapult back to the limit
 	case LOAD_PULL_BACK:
-		loadingMotor->Set(FULL_FORWARDS);
+		loadingMotor->Set(FULL_BACKWARDS);
 		if((loadedLimit->Get() == PRESSED))
 		{
 			loadingMotor->Set(STOPPED);
 			loadingState = LOAD_RELEASE_TENSION;
+			unwindTimer->Reset();
+			unwindTimer->Start();
 		}
 		break;
 	//Step 2: Move the loading catapult back to allow the catapult to be released freely
 	case LOAD_RELEASE_TENSION:
-		loadingMotor->Set(FULL_BACKWARDS);
-		if(loadingEnco->GetDistance() <= LOAD_MOTOR_RELEASED)
+		loadingMotor->Set(FULL_FORWARDS);
+		if(unwindTimer->Get() >= UNWIND_TIME)
 		{
 			loadingMotor->Set(STOPPED);
+			unwindTimer->Stop();
 			loadingState = IDLE_STATE;
 		}
 		break;
@@ -118,6 +150,7 @@ void Catapult::StartShoot(void)
 	if((shootingState == IDLE_STATE) && (loadingState == IDLE_STATE))
 	{
 		shootingState = SHOOT_RELEASE;
+		StartRelease();
 	}
 }
 
@@ -164,10 +197,10 @@ int Catapult::Shoot(void)
 }
 
 //Returns the encoder value of the loading motor
-double Catapult::GetLoadingDist(void)
+/*double Catapult::GetLoadingDist(void)
 {
 	return loadingEnco->GetDistance();
-}
+}*/
 
 //Returns the pot value of the holding motor
 /*double Catapult::GetHoldingDist(void)
@@ -202,7 +235,7 @@ void Catapult::MoveLoadingMotor(float speed)
 	}
 	else
 	{
-		holdingMotor->Set(speed);
+		loadingMotor->Set(speed);
 	}
 }
 

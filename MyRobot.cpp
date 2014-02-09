@@ -7,7 +7,7 @@
 
 //Ports for the Intake TODO Change port numbers to real values
 #define INTAKE_ROLLER_PORT 5
-#define BALL_SENSOR_PORT 9
+#define BALL_SENSOR_PORT 7
 /*#define INTAKE_LEFT_PIVOT_PORT 1
 #define INTAKE_RIGHT_PIVOT_PORT 1
 #define INTAKE_UPPER_LIMIT_PORT 1
@@ -17,10 +17,10 @@
 //Ports for the Catapult TODO Change port number to real values
 #define LOADING_MOTOR_PORT 3
 #define HOLDING_MOTOR_PORT 4
-#define LOADED_LIMIT_PORT 7
-#define HOLDING_LIMIT_PORT 8
-#define LOADING_ENCO_PORT_1 5
-#define LOADING_ENCO_PORT_2 6
+#define LOADED_LIMIT_PORT 5
+#define HOLDING_LIMIT_PORT 6
+//#define LOADING_ENCO_PORT_1 5
+//#define LOADING_ENCO_PORT_2 6
 //#define HOLDING_POT_PORT 1
 
 #define GYRO_PORT 1
@@ -43,7 +43,11 @@
 
 //Two ball autonomous step name definitions
 #define AUTON_TWO_RELOAD 1
-#define AUTON_TWO_FIRST_TURN 2
+#define AUTON_TWO_FIRST_SHOOT 2
+#define AUTON_TWO_INTAKE 3
+#define AUTON_TWO_SECOND_SHOOT 4
+#define AUTON_TWO_DRIVE_FORWARDS 5
+/*#define AUTON_TWO_FIRST_TURN 2
 #define AUTON_TWO_FIRST_SHOOT 3
 #define AUTON_TWO_FIRST_WAIT 4
 #define AUTON_TWO_SECOND_TURN 5
@@ -51,7 +55,9 @@
 #define AUTON_TWO_THIRD_TURN 7
 #define AUTON_TWO_SECOND_SHOOT 8
 #define AUTON_TWO_SECOND_WAIT 9
-#define AUTON_TWO_DRIVE_FORWARDS 10
+#define AUTON_TWO_DRIVE_FORWARDS 10*/
+
+#define ENCO_PULSES_PER_REV 259
 
 //Defines for SmartDashboard Keys
 #define NUM_BALL_AUTO "Number of Balls in Auto"
@@ -88,8 +94,10 @@ public:
 		myRobot = new RobotDrive(1, 2);
 		leftEnco = new Encoder(LEFT_ENCO_PORT_1, LEFT_ENCO_PORT_2);
 		rightEnco = new Encoder(RIGHT_ENCO_PORT_1, RIGHT_ENCO_PORT_2);
-		leftEnco->SetDistancePerPulse(1);//TODO change this to the real number
-		rightEnco->SetDistancePerPulse(1);
+		leftEnco->SetDistancePerPulse((4 * 3.14159)/ENCO_PULSES_PER_REV);//TODO change this to the real number
+		leftEnco->Start();
+		rightEnco->SetDistancePerPulse((4 * 3.14159)/ENCO_PULSES_PER_REV);
+		rightEnco->Start();
 		leftStick = new Joystick(1);
 		rightStick = new Joystick(2);
 
@@ -100,7 +108,7 @@ public:
 		//Initialize the manipulators
 		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_PORT,
-				HOLDING_LIMIT_PORT, LOADING_ENCO_PORT_1, LOADING_ENCO_PORT_2);
+				HOLDING_LIMIT_PORT);
 
 		//Initialize the objects needed for camera tracking
 		rpi = new RaspberryPi("17140");
@@ -192,11 +200,13 @@ public:
 		GetWatchdog().SetEnabled(false);
 		Timer* hotGoalTimer = new Timer();
 		Timer* reloadTimer = new Timer();
+		Timer* intakeTimer = new Timer();
 		bool goalFound = false;
-		bool rightSideHot = false;
+		//bool rightSideHot = false;
 		hotGoalTimer->Reset();
 		hotGoalTimer->Start();
 		gyro->Reset();
+		LEDLight->Set(Relay::kForward);
 
 		//Find out the type of autonomous we are using
 		int autonType = (int)SmartDashboard::GetNumber(NUM_BALL_AUTO);
@@ -232,6 +242,7 @@ public:
 					if(!(bool)catapult->Load() && (goalFound || hotGoalTimer->Get() >= 5.25))
 					{
 						autonStep = AUTON_ONE_SHOOT;
+						catapult->StartRelease();
 					}
 					break;
 				case AUTON_ONE_SHOOT:
@@ -256,7 +267,7 @@ public:
 					break;
 				case AUTON_ONE_DRIVE_FORWARDS:
 					//Drive forwards into the alliance zone and reload the catapult
-					if((!GyroDrive(0, 0.75, 48)) && (!(bool)catapult->Load()))
+					if((!GyroDrive(0, 0.75, 36)) && (!(bool)catapult->Load()))
 					{
 						autonStep = AUTON_END;
 					}
@@ -271,15 +282,16 @@ public:
 				{
 				case AUTON_TWO_RELOAD:
 					//Determine if the hot goal is on the right
-					if((rpi->GetXPos() != RPI_ERROR_VALUE) && 
+					/*if((rpi->GetXPos() != RPI_ERROR_VALUE) && 
 							(rpi->GetYPos() != RPI_ERROR_VALUE))
 					{
 						rightSideHot = true;
-					}
+					}*/
 					//Reload the catapult
-					if(!catapult->Load())
+					if(!((bool)catapult->Load()))
 					{
-						autonStep = AUTON_TWO_FIRST_TURN;
+						autonStep = AUTON_TWO_FIRST_SHOOT;
+						catapult->StartShoot();
 					}
 					/*if((goalFound))
 					{
@@ -294,7 +306,40 @@ public:
 						autonStep = AUTON_TWO_FIRST_TURN;
 					}*/
 					break;
-				case AUTON_TWO_FIRST_TURN:
+				case AUTON_TWO_FIRST_SHOOT:
+					if(!((bool)catapult->Shoot()))
+					{
+						autonStep = AUTON_TWO_INTAKE;
+						intakeTimer->Reset();
+						intakeTimer->Start();
+					}
+					break;
+				case AUTON_TWO_INTAKE:
+					intake->RollIn();
+					if(intakeTimer->Get() >= 1.5)
+					{
+						intake->Stop();
+						intakeTimer->Stop();
+						autonStep = AUTON_TWO_SECOND_SHOOT;
+						catapult->StartRelease();
+					}
+					break;
+				case AUTON_TWO_SECOND_SHOOT:
+					if(!catapult->ReleaseHold())
+					{
+						autonStep = AUTON_TWO_DRIVE_FORWARDS;
+						catapult->StartLoad();
+						leftEnco->Reset();
+						rightEnco->Reset();
+					}
+					break;
+				case AUTON_TWO_DRIVE_FORWARDS:
+					if((!GyroDrive(0, 0.75, 36)) && (!((bool)catapult->Load())))
+					{
+						autonStep = AUTON_END;
+					}
+					break;
+				/*case AUTON_TWO_FIRST_TURN:
 					//Turn to the left 5* if the right goal is not hot
 					if(!rightSideHot)
 					{
@@ -378,7 +423,7 @@ public:
 					{
 						autonStep = AUTON_END;
 					}
-					break;
+					break;*/
 				case AUTON_END:
 					break;
 				}
@@ -389,6 +434,7 @@ public:
 	void OperatorControl()
 	{
 		GetWatchdog().SetEnabled(true);
+		LEDLight->Set(Relay::kOff);
 		while (IsOperatorControl() && !IsDisabled())
 		{
 			myRobot->TankDrive(leftStick, rightStick);
@@ -396,13 +442,14 @@ public:
 			lcd->Clear();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
+			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "%i", rpi->GetXPos());
 			
 			//Driver controls
 			//Right trigger shoots the catapult
-			if(rightStick->GetRawButton(1))
+			/*if(rightStick->GetRawButton(1))
 			{
 				catapult->StartShoot();
-			}
+			}*/
 
 			//Move the intake in if the R-2 trigger is pressed
 			if(rightStick->GetRawButton(2))
@@ -410,22 +457,48 @@ public:
 				intake->RollIn();
 			}
 			//Move it out if the R-5 trigger is pressed
-			else if(rightStick->GetRawButton(5))
+			else if(rightStick->GetRawButton(3))
 			{
 				intake->RollOut();
 			}
 			//Intake the ball only far enough for a pass if R-3 is pressed
-			else if(rightStick->GetRawButton(3))
+			/*else if(rightStick->GetRawButton(3))
 			{
 				intake->GetBallForPass();
-			}
+			}*/
 			//If none of them are pressed, stop the intake
 			else
 			{
 				intake->Stop();
 			}
-
-
+			
+			//Catapult stuff
+			if(leftStick->GetRawButton(3))
+			{
+				catapult->StartLoad();
+			}
+			/*if(leftStick->GetRawButton(10))
+			{
+				catapult->StartShoot();
+			}*/
+			if(leftStick->GetRawButton(11))
+			{
+				catapult->StartRelease();
+			}
+			
+			if(leftStick->GetRawButton(6))//Unwind
+			{
+				catapult->MoveLoadingMotor(0.5);
+			}
+			else if(leftStick->GetRawButton(7))//wind
+			{
+				catapult->MoveLoadingMotor(-0.5);
+			}
+			else if(catapult->GetLoadingState() == IDLE_STATE)
+			{
+				catapult->MoveLoadingMotor(0);
+			}
+	
 			//If the right-6 button and l-10 button are pressed, stop the catapult
 			if(rightStick->GetRawButton(6) && leftStick->GetRawButton(10))
 			{
@@ -434,9 +507,10 @@ public:
 
 			//These functions need to called all of the time, but don't do anything until
 			//Their start method is called
-			catapult->Shoot();
+			catapult->ReleaseHold();
+			//catapult->Shoot();
 			catapult->Load();
-
+			
 			lcd->UpdateLCD();
 			GetWatchdog().Feed();
 			Wait(0.005);				// wait for a motor update time
