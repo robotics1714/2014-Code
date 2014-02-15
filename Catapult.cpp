@@ -1,12 +1,13 @@
 #include "Catapult.h"
 
-Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPort, 
-		int holdingLimitPort)
+Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimit1Port,
+		int loadedLimit2Port, int holdingLimitPort)
 {
 	//Initialize the components
 	loadingMotor = new Talon(loadingMotorPort);
 	holdingMotor = new Talon(holdingMotorPort);
-	loadedLimit = new DigitalInput(loadedLimitPort);
+	loadedLimit1 = new DigitalInput(loadedLimit1Port);
+	loadedLimit2 = new DigitalInput(loadedLimit2Port);
 	holdingLimit = new DigitalInput(holdingLimitPort);
 	//loadingEnco = new Encoder(loadingEncoPort1, loadingEncoPort2);
 	//holdingPot = new AnalogChannel(holdingPotPort);
@@ -16,6 +17,8 @@ Catapult::Catapult(int loadingMotorPort, int holdingMotorPort, int loadedLimitPo
 	unwindTimer->Reset();
 	releaseTimer = new Timer();
 	releaseTimer->Reset();
+	windTimer = new Timer();
+	windTimer->Reset();
 	
 	loadingState = IDLE_STATE;
 	shootingState = IDLE_STATE;
@@ -27,12 +30,14 @@ Catapult::~Catapult()
 {
 	delete loadingMotor;
 	delete holdingMotor;
-	delete loadedLimit;
+	delete loadedLimit1;
+	delete loadedLimit2;
 	delete holdingLimit;
 	//delete loadingEnco;
 	//delete holdingPot;
 	delete waitTimer;
 	delete unwindTimer;
+	delete windTimer;
 	delete releaseTimer;
 }
 
@@ -106,6 +111,8 @@ void Catapult::StartLoad(void)
 	if((shootingState != SHOOT_RELOAD) && (loadingState == IDLE_STATE))
 	{
 		loadingState = LOAD_PULL_BACK;
+		windTimer->Reset();
+		windTimer->Start();
 	}
 }
 
@@ -121,12 +128,15 @@ int Catapult::Load(void)
 	//Step 1: Bring the catapult back to the limit
 	case LOAD_PULL_BACK:
 		loadingMotor->Set(FULL_BACKWARDS);
-		if((loadedLimit->Get() == PRESSED))
+		//Stop the motor when it hits the limit. If the wind timer has been triggered something went wrong so stop it
+		if((loadedLimit1->Get() == PRESSED || loadedLimit2->Get() == PRESSED) ||
+				(windTimer->Get() >= WIND_TIMER))
 		{
 			loadingMotor->Set(STOPPED);
 			loadingState = LOAD_RELEASE_TENSION;
 			unwindTimer->Reset();
 			unwindTimer->Start();
+			windTimer->Stop();
 		}
 		break;
 	//Step 2: Move the loading catapult back to allow the catapult to be released freely
@@ -214,9 +224,14 @@ int Catapult::GetHoldingLimit(void)
 }
 
 //Returns whether or not the loading limit is pressed
-int Catapult::GetLoadedLimit(void)
+int Catapult::GetLoadedLimit1(void)
 {
-	return loadedLimit->Get();
+	return loadedLimit1->Get();
+}
+
+int Catapult::GetLoadedLimit2(void)
+{
+	return loadedLimit2->Get();
 }
 
 //Manually moves the holding motor
@@ -229,7 +244,7 @@ void Catapult::MoveHoldingMotor(float speed)
 void Catapult::MoveLoadingMotor(float speed)
 {
 	//Check for if the catapult will hit the limit switch
-	if((speed < 0) && (loadedLimit->Get() == PRESSED))//TODO check whether negative speed moves the catapult down
+	if((speed < 0) && (loadedLimit1->Get() == PRESSED || loadedLimit2->Get() == PRESSED))
 	{
 		loadingMotor->Set(STOPPED);
 	}
