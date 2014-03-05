@@ -1,11 +1,13 @@
 #include "Intake.h"
 
-Intake::Intake(int rollerPort, int ballSensorPort, int servoPort)
+Intake::Intake(int rollerPort, int ballSensorPort, int leftServoPort, int rightServoPort)
 {
 	roller = new Talon(rollerPort);
 	ballSensor = new DigitalInput(ballSensorPort);
-	dropServo = new Servo(servoPort);
-	dropServo->SetAngle(SERVO_UP);
+	leftServo = new Servo(leftServoPort);
+	leftServo->SetAngle(LEFT_SERVO_UP);
+	rightServo = new Servo(rightServoPort);
+	rightServo->SetAngle(RIGHT_SERVO_UP);
 	/*pivotL = new Victor(pivotLPort);
 	pivotR = new Victor(pivotRPort);
 	upperLimit = new DigitalInput(upperLimitPort);
@@ -17,7 +19,8 @@ Intake::~Intake()
 {
 	delete roller;
 	delete ballSensor;
-	delete dropServo;
+	delete leftServo;
+	delete rightServo;
 	/*delete pivotL;
 	delete pivotR;
 	delete upperLimit;
@@ -116,7 +119,14 @@ void Intake::RollOut(void)
  */
 void Intake::DropIntake(void)
 {
-	dropServo->SetAngle(SERVO_DOWN);
+	leftServo->SetAngle(LEFT_SERVO_DOWN);
+	rightServo->SetAngle(RIGHT_SERVO_DOWN);
+}
+
+void Intake::LiftIntake(void)
+{
+	leftServo->SetAngle(LEFT_SERVO_UP);
+	rightServo->SetAngle(RIGHT_SERVO_UP);
 }
 
 /*

@@ -5,17 +5,18 @@
 #include "Intake.h"
 #include "Catapult.h"
 
-//Ports for the Intake TODO Change port numbers to real values
+//Ports for the Intake
 #define INTAKE_ROLLER_PORT 5
 #define BALL_SENSOR_PORT 7
-#define DROP_SERVO_PORT 6
+#define LEFT_SERVO_PORT 6
+#define RIGHT_SERVO_PORT 7
 /*#define INTAKE_LEFT_PIVOT_PORT 1
 #define INTAKE_RIGHT_PIVOT_PORT 1
 #define INTAKE_UPPER_LIMIT_PORT 1
 #define INTAKE_LOWER_LIMIT_PORT 1
 #define INTAKE_POSITION_POT_PORT 1*/
 
-//Ports for the Catapult TODO Change port number to real values
+//Ports for the Catapult
 #define LOADING_MOTOR_PORT 3
 #define HOLDING_MOTOR_PORT 4
 #define LOADED_LIMIT_1_PORT 5
@@ -44,11 +45,12 @@
 #define AUTON_END 0
 
 //Two ball autonomous step name definitions
-#define AUTON_TWO_FIRST_SHOOT 1
-#define AUTON_TWO_INTAKE 2
-#define AUTON_TWO_SECOND_SHOOT 3
-#define AUTON_TWO_WAIT 4
-#define AUTON_TWO_DRIVE_FORWARDS 5
+#define AUTON_TWO_WAIT_FOR_INTAKE 1
+#define AUTON_TWO_FIRST_SHOOT 2
+#define AUTON_TWO_INTAKE 3
+#define AUTON_TWO_SECOND_SHOOT 4
+#define AUTON_TWO_WAIT 5
+#define AUTON_TWO_DRIVE_FORWARDS 6
 /*#define AUTON_TWO_FIRST_TURN 2
 #define AUTON_TWO_FIRST_SHOOT 3
 #define AUTON_TWO_FIRST_WAIT 4
@@ -60,6 +62,8 @@
 #define AUTON_TWO_DRIVE_FORWARDS 10*/
 
 #define ENCO_PULSES_PER_REV 259
+
+#define INTAKE_DROP_WAIT 0.95
 
 //Defines for SmartDashboard Keys
 #define NUM_BALL_AUTO "Number of Balls in Auto"
@@ -96,7 +100,7 @@ public:
 		myRobot = new RobotDrive(1, 2);
 		leftEnco = new Encoder(LEFT_ENCO_PORT_1, LEFT_ENCO_PORT_2);
 		rightEnco = new Encoder(RIGHT_ENCO_PORT_1, RIGHT_ENCO_PORT_2);
-		leftEnco->SetDistancePerPulse((4 * 3.14159)/ENCO_PULSES_PER_REV);//TODO change this to the real number
+		leftEnco->SetDistancePerPulse((4 * 3.14159)/ENCO_PULSES_PER_REV);
 		leftEnco->Start();
 		rightEnco->SetDistancePerPulse((4 * 3.14159)/ENCO_PULSES_PER_REV);
 		rightEnco->Start();
@@ -108,7 +112,7 @@ public:
 		gyro->Reset();
 
 		//Initialize the manipulators
-		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT, DROP_SERVO_PORT);
+		intake = new Intake(INTAKE_ROLLER_PORT, BALL_SENSOR_PORT, LEFT_SERVO_PORT, RIGHT_SERVO_PORT);
 		catapult = new Catapult(LOADING_MOTOR_PORT, HOLDING_MOTOR_PORT, LOADED_LIMIT_1_PORT,
 				LOADED_LIMIT_2_PORT, HOLDING_LIMIT_PORT);
 
@@ -203,6 +207,7 @@ public:
 		Timer* hotGoalTimer = new Timer();
 		Timer* reloadTimer = new Timer();
 		Timer* intakeTimer = new Timer();
+		Timer* intakeDropTimer = new Timer();
 		bool goalFound = false;
 		//bool rightSideHot = false;
 		hotGoalTimer->Reset();
@@ -217,21 +222,28 @@ public:
 		if(autonType == 2)//Set the auton mode to two if we are doing a two ball auto
 		{
 			autonMode = TWO_BALL_AUTON;
-			autonStep = AUTON_TWO_FIRST_SHOOT;
-			catapult->StartShoot();
+			autonStep = AUTON_TWO_WAIT_FOR_INTAKE;
 		}
 		else//Set the auton to one if the value on SD is set to 1 or another random value
 		{
 			autonMode = ONE_BALL_AUTON;
 			autonStep = AUTON_ONE_FIND_HOT;
 		}
-
+		
+		//Bring the intake down
+		intake->DropIntake();
+		intakeDropTimer->Reset();
+		intakeDropTimer->Start();
+		
 		while(IsAutonomous() && !IsDisabled())
 		{
 			rpi->Read();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "T: %f", hotGoalTimer->Get());
+			lcd->Printf(DriverStationLCD::kUser_Line4, 1, "i: %f", intakeDropTimer->Get());
+			lcd->Printf(DriverStationLCD::kUser_Line5, 1, "%i", rpi->GetXPos());
+			lcd->Printf(DriverStationLCD::kUser_Line6, 1, "%i", rpi->GetYPos());
 			lcd->UpdateLCD();
 			if(autonMode == ONE_BALL_AUTON)
 			{
@@ -246,7 +258,8 @@ public:
 						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
 								(rpi->GetYPos() != RPI_ERROR_VALUE));
 					}
-					if((goalFound) || (hotGoalTimer->Get() >= 5.25))
+					//Wait for the goal to be hot and the intake to move down
+					if(((goalFound) || (hotGoalTimer->Get() >= 5.25)) && intakeDropTimer->Get() >= INTAKE_DROP_WAIT)
 					{
 						autonStep = AUTON_ONE_SHOOT;
 						catapult->StartRelease();
@@ -313,6 +326,14 @@ public:
 						autonStep = AUTON_TWO_FIRST_TURN;
 					}
 					break;*/
+				case AUTON_TWO_WAIT_FOR_INTAKE:
+					//wait for the intake to drop down
+					if(intakeDropTimer->Get() >= INTAKE_DROP_WAIT)
+					{
+						autonStep = AUTON_TWO_FIRST_SHOOT;
+						catapult->StartShoot();
+					}
+					break;
 				case AUTON_TWO_FIRST_SHOOT:
 					if(!((bool)catapult->Shoot()))
 					{
@@ -350,7 +371,7 @@ public:
 					}
 					break;
 				case AUTON_TWO_DRIVE_FORWARDS:
-					if((!GyroDrive(0, 0.75, 36)) && (!((bool)catapult->Load())))
+					if((!GyroDrive(0, 0.9, 36)) && (!((bool)catapult->Load())))
 					{
 						autonStep = AUTON_END;
 					}
@@ -450,16 +471,18 @@ public:
 	void OperatorControl()
 	{
 		GetWatchdog().SetEnabled(true);
-		LEDLight->Set(Relay::kOff);
+		intake->LiftIntake();
 		while (IsOperatorControl() && !IsDisabled())
 		{
+			LEDLight->Set(Relay::kForward);
 			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
-			lcd->Clear();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "%i", rpi->GetXPos());
-			
+			lcd->Printf(DriverStationLCD::kUser_Line4, 1, "%i", catapult->GetLoadedLimit1());
+			lcd->Printf(DriverStationLCD::kUser_Line5, 1, "%i", catapult->GetLoadedLimit2());
+			lcd->UpdateLCD();
 			//Driver controls
 
 			//Move the intake in if the R-2 trigger is pressed
@@ -467,7 +490,7 @@ public:
 			{
 				intake->RollIn();
 			}
-			//Move it out if the R-5 trigger is pressed
+			//Move it out if the R-3 trigger is pressed
 			else if(rightStick->GetRawButton(3))
 			{
 				intake->RollOut();
@@ -509,7 +532,6 @@ public:
 			catapult->Shoot();
 			catapult->Load();
 			
-			lcd->UpdateLCD();
 			GetWatchdog().Feed();
 			Wait(0.005);				// wait for a motor update time
 		}
@@ -520,6 +542,7 @@ public:
 		while(IsDisabled())
 		{
 			rpi->Read();
+			LEDLight->Set(Relay::kForward);
 			lcd->Clear();
 			if(rpi->GetXPos() != RPI_ERROR_VALUE)
 			{
