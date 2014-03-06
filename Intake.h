@@ -11,6 +11,9 @@
 #define RIGHT_SERVO_UP 160
 #define RIGHT_SERVO_DOWN 80
 
+#define INTAKE_IN -1
+#define INTAKE_OUT 1
+
 class Intake
 {
 private:

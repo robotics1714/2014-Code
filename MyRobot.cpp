@@ -283,6 +283,7 @@ public:
 						reloadTimer->Stop();
 						//Start reloading the catapult
 						catapult->StartLoad();
+						gyro->Reset();
 					}
 					break;
 				case AUTON_ONE_DRIVE_FORWARDS:
@@ -367,6 +368,7 @@ public:
 						leftEnco->Reset();
 						rightEnco->Reset();
 						catapult->StartLoad();
+						gyro->Reset();
 						autonStep = AUTON_TWO_DRIVE_FORWARDS;
 					}
 					break;
@@ -472,9 +474,9 @@ public:
 	{
 		GetWatchdog().SetEnabled(true);
 		intake->LiftIntake();
+		LEDLight->Set(Relay::kOff);
 		while (IsOperatorControl() && !IsDisabled())
 		{
-			LEDLight->Set(Relay::kForward);
 			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
@@ -542,7 +544,6 @@ public:
 		while(IsDisabled())
 		{
 			rpi->Read();
-			LEDLight->Set(Relay::kForward);
 			lcd->Clear();
 			if(rpi->GetXPos() != RPI_ERROR_VALUE)
 			{

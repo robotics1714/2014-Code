@@ -99,8 +99,8 @@ void Intake::MoveToPosition(float pos)
  */
 void Intake::RollIn(void)
 {
-	//make roller motor move at full speed to pick up the ball
-	roller->Set(FULL_BACKWARDS);
+	//make roller motor move atfull speed to pick up the ball
+	roller->Set(INTAKE_IN);
 }
 
 /*
@@ -110,7 +110,7 @@ void Intake::RollIn(void)
 void Intake::RollOut(void)
 {
 	//make the roller move full speed backwards to expell the ball
-	roller->Set(FULL_FORWARDS);
+	roller->Set(INTAKE_OUT);
 }
 
 /*
