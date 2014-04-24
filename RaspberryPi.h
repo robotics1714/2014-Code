@@ -26,6 +26,7 @@ public:
 	~RaspberryPi();
 	int GetXPos();
 	int GetYPos();
+	int GetMissingPacketcount(){return missingPacketCount;}
 	void Read();
 };
 

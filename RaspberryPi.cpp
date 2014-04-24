@@ -63,7 +63,7 @@ void RaspberryPi::Read()
 	//Recieve a packet, if the function returns 0 no message was recieved
 	if(recvfrom(sock, msg, sizeof(msg), MSG_DONTWAIT, NULL, NULL) == -1)
 	{
-		cout<<"No data was recieved\n";
+		//printf("No data was recieved\n");
 		//If the robot doesn't recieve so many packets in a row, assume we lost connection
 		missingPacketCount++;
 		if(missingPacketCount >= 500)
@@ -85,6 +85,7 @@ void RaspberryPi::Read()
 		
 		xPos = atoi(xStr);
 		yPos = atoi(yStr);
+		printf("It worked\n");
 		
 		//Reset the missing packet count
 		missingPacketCount = 0;

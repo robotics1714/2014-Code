@@ -63,7 +63,7 @@
 
 #define ENCO_PULSES_PER_REV 259
 
-#define INTAKE_DROP_WAIT 0.95
+#define INTAKE_DROP_WAIT 2
 
 //Defines for SmartDashboard Keys
 #define NUM_BALL_AUTO "Number of Balls in Auto"
@@ -229,37 +229,39 @@ public:
 			autonMode = ONE_BALL_AUTON;
 			autonStep = AUTON_ONE_FIND_HOT;
 		}
-		
+
 		//Bring the intake down
 		intake->DropIntake();
 		intakeDropTimer->Reset();
 		intakeDropTimer->Start();
-		
+
 		while(IsAutonomous() && !IsDisabled())
 		{
 			rpi->Read();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
 			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "T: %f", hotGoalTimer->Get());
-			lcd->Printf(DriverStationLCD::kUser_Line4, 1, "i: %f", intakeDropTimer->Get());
+			lcd->Printf(DriverStationLCD::kUser_Line4, 1, "i: %i", rpi->GetMissingPacketcount());
 			lcd->Printf(DriverStationLCD::kUser_Line5, 1, "%i", rpi->GetXPos());
 			lcd->Printf(DriverStationLCD::kUser_Line6, 1, "%i", rpi->GetYPos());
 			lcd->UpdateLCD();
+			LEDLight->Set(Relay::kForward);
 			if(autonMode == ONE_BALL_AUTON)
 			{
 				switch(autonStep)
 				{
 				case AUTON_ONE_FIND_HOT:
 					//Reload the catapult and find the hot goal
+					rpi->Read();
 					if(!goalFound)
 					{
 						//This is put into an if statement to protect against the 
 						//rpi finding the hot goal and then losing it
-						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) &&
+						goalFound = ((rpi->GetXPos() != RPI_ERROR_VALUE) ||
 								(rpi->GetYPos() != RPI_ERROR_VALUE));
 					}
 					//Wait for the goal to be hot and the intake to move down
-					if(((goalFound) || (hotGoalTimer->Get() >= 5.25)) && intakeDropTimer->Get() >= INTAKE_DROP_WAIT)
+					if(((goalFound) || (hotGoalTimer->Get() >= 6.75)) && intakeDropTimer->Get() >= INTAKE_DROP_WAIT)
 					{
 						autonStep = AUTON_ONE_SHOOT;
 						catapult->StartRelease();
@@ -336,6 +338,10 @@ public:
 					}
 					break;
 				case AUTON_TWO_FIRST_SHOOT:
+					if(catapult->GetLoadingState() == LOAD_RELEASE_TENSION)
+					{
+						intake->RollIn();
+					}
 					if(!((bool)catapult->Shoot()))
 					{
 						autonStep = AUTON_TWO_INTAKE;
@@ -362,7 +368,7 @@ public:
 					}
 					break;
 				case AUTON_TWO_WAIT:
-					if(reloadTimer->Get() >= CATAPULT_WAIT_TIME)
+					if(reloadTimer->Get() >= 0.5)
 					{
 						reloadTimer->Stop();
 						leftEnco->Reset();
@@ -378,7 +384,7 @@ public:
 						autonStep = AUTON_END;
 					}
 					break;
-				/*case AUTON_TWO_FIRST_TURN:
+					/*case AUTON_TWO_FIRST_TURN:
 					//Turn to the left 5* if the right goal is not hot
 					if(!rightSideHot)
 					{
@@ -480,7 +486,7 @@ public:
 			myRobot->TankDrive(leftStick, rightStick);
 			rpi->Read();
 			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "L: %f", leftEnco->GetDistance());
-			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %f", rightEnco->GetDistance());
+			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "R: %i", rpi->GetMissingPacketcount());
 			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "%i", rpi->GetXPos());
 			lcd->Printf(DriverStationLCD::kUser_Line4, 1, "%i", catapult->GetLoadedLimit1());
 			lcd->Printf(DriverStationLCD::kUser_Line5, 1, "%i", catapult->GetLoadedLimit2());
@@ -507,7 +513,7 @@ public:
 			{
 				intake->Stop();
 			}
-			
+
 			//Catapult stuff
 			if(rightStick->GetRawButton(1) && leftStick->GetRawButton(1))
 			{
@@ -521,7 +527,7 @@ public:
 			{
 				catapult->StartRelease();
 			}
-	
+
 			//If the right-6 button and l-10 button are pressed, stop the catapult
 			if(rightStick->GetRawButton(6) && leftStick->GetRawButton(10))
 			{
@@ -533,7 +539,7 @@ public:
 			catapult->ReleaseHold();
 			catapult->Shoot();
 			catapult->Load();
-			
+
 			GetWatchdog().Feed();
 			Wait(0.005);				// wait for a motor update time
 		}
@@ -543,24 +549,12 @@ public:
 	{
 		while(IsDisabled())
 		{
+			LEDLight->Set(Relay::kForward);
 			rpi->Read();
 			lcd->Clear();
-			if(rpi->GetXPos() != RPI_ERROR_VALUE)
-			{
-				lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
-			}
-			else
-			{
-				lcd->Printf(DriverStationLCD::kUser_Line1, 1, "  not  ");
-			}
-			if(rpi->GetYPos() != RPI_ERROR_VALUE)
-			{
-				lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
-			}
-			else
-			{
-				lcd->Printf(DriverStationLCD::kUser_Line2, 1, "   not   ");
-			}
+			lcd->Printf(DriverStationLCD::kUser_Line3, 1, "R: %i", rpi->GetMissingPacketcount());
+			lcd->Printf(DriverStationLCD::kUser_Line1, 1, "x: %i", rpi->GetXPos());
+			lcd->Printf(DriverStationLCD::kUser_Line2, 1, "y: %i", rpi->GetYPos());
 
 			lcd->UpdateLCD();
 		}
